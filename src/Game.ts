@@ -91,6 +91,10 @@ export class Game {
     } catch {}
   }
 
+  getState(): GameState { return this.state; }
+  getInput(): Input { return this.input; }
+  isMerchantNear(): boolean { return !!this.merchant?.nearPlayer; }
+
   start(): void {
     this.lastTime = performance.now();
     requestAnimationFrame(this.loop.bind(this));

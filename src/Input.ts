@@ -20,6 +20,17 @@ export class Input {
     });
   }
 
+  /** Called by TouchControls on touchstart — simulates a key press for one frame */
+  touchPress(code: string): void {
+    if (!this.keys.has(code)) this.justPressed.add(code);
+    this.keys.add(code);
+  }
+
+  /** Called by TouchControls on touchend */
+  touchRelease(code: string): void {
+    this.keys.delete(code);
+  }
+
   isDown(code: string): boolean { return this.keys.has(code); }
 
   pressed(code: string): boolean { return this.justPressed.has(code); }
