@@ -12,8 +12,31 @@
   &nbsp;·&nbsp;
   <a href="todos/plan.md">Design Document</a>
   &nbsp;·&nbsp;
+  <a href="specs/implementation-plan.md">Accessibility Plan</a>
+  &nbsp;·&nbsp;
+  <a href="specs/adr-006-testing-strategy.md">Testing Strategy</a>
+  &nbsp;·&nbsp;
   <a href="LICENSE">MIT License</a>
 </p>
+
+---
+
+## A note for visually impaired players
+
+If you're playing DINO with a screen magnifier, browser zoom, or a screen reader — we want to hear from you.
+
+This game is actively being made more accessible. Browser zoom should work. High-contrast mode is coming. Screen reader support for all menus is in development. But we're building this with real feedback, not assumptions, and we know we'll get things wrong without you telling us.
+
+**What we'd love to know:**
+
+- What assistive tools do you use? (browser zoom level, screen reader, OS magnification)
+- What broke or felt wrong?
+- What worked better than you expected?
+- What would make this game genuinely enjoyable for you — mechanics, audio, UI, anything?
+
+**[Open an accessibility feedback issue →](https://github.com/karma-works/dino/issues/new?labels=accessibility&title=Accessibility+feedback)**
+
+No template to fill out. Just tell us what happened and what your setup is. You're not a test case — you're shaping what this game becomes.
 
 ---
 
@@ -125,6 +148,26 @@ dino/
 ├── package.json
 └── tsconfig.json
 ```
+
+## Accessibility
+
+DINO is being made accessible for visually impaired players. See the [implementation plan](specs/implementation-plan.md) for full details.
+
+**Current status:**
+- [ ] Browser zoom unblocked (Phase 1 — in progress)
+- [ ] Semantic HTML menus with screen reader support (Phase 2)
+- [ ] High-contrast mode, reduced motion, larger HUD text (Phase 3)
+
+**Supported assistive technologies (target):**
+- Browser zoom up to 400% (Chrome, Firefox, Safari, Edge)
+- Screen readers: VoiceOver (macOS/iOS), NVDA (Windows), JAWS (Windows), TalkBack (Android)
+- OS-level magnification software
+
+**Known limitations:**
+- Real-time gameplay is canvas-rendered and not directly accessible to screen readers. Audio cues and ARIA live region announcements supplement visual gameplay information.
+- Totally blind users who have never played a platformer are not the primary target for this iteration. We'd still love to hear from you.
+
+[Open an accessibility issue →](https://github.com/karma-works/dino/issues/new?labels=accessibility&title=Accessibility+feedback)
 
 ## License
 
