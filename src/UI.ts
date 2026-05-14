@@ -8,10 +8,22 @@ export class UI {
   private levelFlash = 0;
   private levelFlashNum = 0;
   private damageFlash = 0;
+  private reducedMotion = false;
+  private largeHUD = false;
 
-  triggerCheckpointFlash(): void { this.checkpointFlash = 1; }
-  triggerLevelFlash(n: number): void { this.levelFlash = 1; this.levelFlashNum = n; }
-  triggerDamageFlash(): void { this.damageFlash = 1; }
+  triggerCheckpointFlash(): void { if (!this.reducedMotion) this.checkpointFlash = 1; }
+  triggerLevelFlash(n: number): void { if (!this.reducedMotion) this.levelFlash = 1; this.levelFlashNum = n; }
+  triggerDamageFlash(): void { if (!this.reducedMotion) this.damageFlash = 1; }
+
+  setAccessibilityOptions(options: { reducedMotion: boolean; largeHUD: boolean }): void {
+    this.reducedMotion = options.reducedMotion;
+    this.largeHUD = options.largeHUD;
+    if (this.reducedMotion) {
+      this.checkpointFlash = 0;
+      this.levelFlash = 0;
+      this.damageFlash = 0;
+    }
+  }
 
   update(dt: number): void {
     this.checkpointFlash = Math.max(0, this.checkpointFlash - dt / 800);
@@ -33,7 +45,8 @@ export class UI {
 
     // Semi-transparent HUD strip
     ctx.fillStyle = "rgba(0,0,0,0.5)";
-    ctx.fillRect(0, 0, CANVAS_W, 38);
+    const hudH = this.largeHUD ? 56 : 38;
+    ctx.fillRect(0, 0, CANVAS_W, hudH);
 
     // Hearts
     for (let i = 0; i < maxHp; i++) {
@@ -47,38 +60,38 @@ export class UI {
 
     // Treasure
     ctx.fillStyle = COLORS.treasure;
-    ctx.font = "bold 14px monospace";
+    ctx.font = `bold ${this.largeHUD ? 21 : 14}px monospace`;
     ctx.textAlign = "left";
     ctx.fillText(`💎 ${treasures}`, 10 + maxHp * 22 + 10, 24);
 
     // Level
     ctx.fillStyle = COLORS.textMain;
     ctx.textAlign = "center";
-    ctx.font = "bold 13px monospace";
+    ctx.font = `bold ${this.largeHUD ? 20 : 13}px monospace`;
     ctx.fillText(`DEPTH ${levelNum}`, CANVAS_W / 2, 24);
 
     // Depth record
     if (levelNum > depthRecord) {
       ctx.fillStyle = "#ffaa00";
-      ctx.font = "10px monospace";
-      ctx.fillText("NEW RECORD!", CANVAS_W / 2, 36);
+      ctx.font = `${this.largeHUD ? 15 : 10}px monospace`;
+      ctx.fillText("NEW RECORD!", CANVAS_W / 2, this.largeHUD ? 50 : 36);
     }
 
     // Companion
     ctx.textAlign = "right";
     ctx.fillStyle = companionAlive ? COLORS.companionEye : "#662222";
-    ctx.font = "11px monospace";
-    ctx.fillText(companionAlive ? "COMPANION: ALIVE" : "COMPANION: DEAD", CANVAS_W - 10, 16);
+    ctx.font = `${this.largeHUD ? 16 : 11}px monospace`;
+    ctx.fillText(companionAlive ? "COMPANION: ALIVE" : "COMPANION: DEAD", CANVAS_W - 10, this.largeHUD ? 22 : 16);
 
     // Upgrades row
     if (upgrades.doubleJump) {
       ctx.fillStyle = "#8866ff";
-      ctx.fillText("2x JUMP", CANVAS_W - 10, 30);
+      ctx.fillText("2x JUMP", CANVAS_W - 10, this.largeHUD ? 44 : 30);
     }
     if (upgrades.shieldActive) {
       ctx.fillStyle = "#4488ff";
       ctx.textAlign = "right";
-      ctx.fillText("SHIELD", CANVAS_W - 10, 30);
+      ctx.fillText("SHIELD", CANVAS_W - 10, this.largeHUD ? 44 : 30);
     }
     if (upgrades.fireLevel > 0) {
       ctx.fillStyle = COLORS.fire1;

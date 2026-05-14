@@ -20,6 +20,11 @@ export class Renderer {
 
   drawBackground(camX: number, camY: number, levelNum: number): void {
     const ctx = this.ctx;
+    if (COLORS.bg0 === "#000000") {
+      ctx.fillStyle = COLORS.bg0;
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+      return;
+    }
     const depth = Math.min(levelNum / 30, 1);
 
     // Sky/cave gradient — deeper = bluer-black
@@ -187,6 +192,7 @@ export class Renderer {
   }
 
   drawFog(camX: number, camY: number, levelNum: number): void {
+    if (COLORS.bg0 === "#000000") return;
     const ctx = this.ctx;
     const depth = Math.min(levelNum / 20, 1);
     const fogAlpha = 0.04 + depth * 0.06;

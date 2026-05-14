@@ -9,6 +9,7 @@ export class Camera {
   private shakeAmt = 0;
   private shakeDur = 0;
   private shakeTimer = 0;
+  private reducedMotion = false;
 
   follow(entityX: number, entityY: number, entityW: number, entityH: number): void {
     this.targetX = entityX + entityW / 2 - CANVAS_W / 2;
@@ -34,9 +35,18 @@ export class Camera {
   }
 
   shake(amount: number, durationMs: number): void {
+    if (this.reducedMotion) return;
     this.shakeAmt = amount;
     this.shakeDur = durationMs;
     this.shakeTimer = durationMs;
+  }
+
+  setReducedMotion(reducedMotion: boolean): void {
+    this.reducedMotion = reducedMotion;
+    if (reducedMotion) {
+      this.shakeAmt = 0;
+      this.shakeTimer = 0;
+    }
   }
 
   toScreen(wx: number, wy: number): { sx: number; sy: number } {

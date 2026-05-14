@@ -3,18 +3,9 @@ import { Game } from "./Game.js";
 import { TouchControls, isTouchDevice } from "./TouchControls.js";
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
+const wrapper = document.getElementById("game-wrapper") as HTMLDivElement;
 canvas.width = CANVAS_W;
 canvas.height = CANVAS_H;
-
-// Wrapper keeps canvas and touch overlay aligned
-const wrapper = document.createElement("div");
-Object.assign(wrapper.style, {
-  position: "relative",
-  display:  "inline-block",
-  lineHeight: "0",
-});
-canvas.parentElement!.insertBefore(wrapper, canvas);
-wrapper.appendChild(canvas);
 
 // Scale canvas + wrapper to fit window while preserving aspect ratio
 function resize(): void {
@@ -30,10 +21,6 @@ function resize(): void {
 }
 resize();
 window.addEventListener("resize", resize);
-
-// Prevent default touch behaviours (scroll, zoom) on the game area
-document.body.addEventListener("touchstart", (e) => e.preventDefault(), { passive: false });
-document.body.addEventListener("touchmove",  (e) => e.preventDefault(), { passive: false });
 
 const game = new Game(canvas);
 

@@ -1,0 +1,37 @@
+name: Accessibility feedback
+description: Report low-vision, screen reader, keyboard, zoom, contrast, or motion accessibility feedback.
+title: "[Accessibility]: "
+labels: ["accessibility"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe what was hard to read, navigate, hear, or understand.
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version
+      placeholder: Chrome 126, Firefox 127, Safari 18
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: Windows 11, macOS, iOS, Android, Linux
+  - type: input
+    id: assistive-tech
+    attributes:
+      label: Assistive technology
+      placeholder: NVDA, JAWS, VoiceOver, TalkBack, ZoomText, browser zoom
+  - type: input
+    id: zoom
+    attributes:
+      label: Zoom or magnification level
+      placeholder: 200% browser zoom, 4x OS magnifier
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the game state and inputs that led to the issue.

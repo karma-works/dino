@@ -52,8 +52,8 @@ export const SHOP_ITEMS = [
 
 export type ShopItemId = typeof SHOP_ITEMS[number]["id"];
 
-export const COLORS = {
-  bg0:        "#030308",
+export const DEFAULT_COLORS = {
+  bg0:        "#030308", // textMain 14.9:1, textDim 6.0:1
   bg1:        "#07070f",
   cave:       "#111122",
   platform:   "#1c1c30",
@@ -71,9 +71,41 @@ export const COLORS = {
   debrisColor:"#2a2a3a",
   enemyColor: "#1a0a0a",
   bossColor:  "#1a0000",
-  bossEye:    "#cc0000",
-  hpColor:    "#cc2200",
-  textMain:   "#dddddd",
-  textDim:    "#666688",
-  exitGlow:   "#0044ff",
-} as const;
+  bossEye:    "#ff3333",
+  hpColor:    "#ff5533", // 6.0:1 on bg0
+  textMain:   "#dddddd", // 14.9:1 on bg0
+  textDim:    "#8888aa", // 6.0:1 on bg0
+  exitGlow:   "#4488ff",
+};
+
+export const HIGH_CONTRAST_COLORS: typeof DEFAULT_COLORS = {
+  bg0:        "#000000",
+  bg1:        "#000000",
+  cave:       "#000000",
+  platform:   "#ffffff",
+  platformTop:"#00ffff",
+  stalactite: "#ffff00",
+  crystal:    "#00ffff",
+  dino:       "#00ffff",
+  dinoEye:    "#ffffff",
+  companion:  "#00ffff",
+  companionEye:"#ffffff",
+  fire0:      "#ffff00",
+  fire1:      "#ffffff",
+  treasure:   "#00ff00",
+  merchantRobe:"#ffffff",
+  debrisColor:"#ffff00",
+  enemyColor: "#ffff00",
+  bossColor:  "#ffff00",
+  bossEye:    "#ffffff",
+  hpColor:    "#ffffff",
+  textMain:   "#ffffff",
+  textDim:    "#ffffff",
+  exitGlow:   "#4488ff",
+};
+
+export const COLORS = { ...DEFAULT_COLORS };
+
+export function applyColorMode(highContrast: boolean): void {
+  Object.assign(COLORS, highContrast ? HIGH_CONTRAST_COLORS : DEFAULT_COLORS);
+}

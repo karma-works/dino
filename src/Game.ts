@@ -1,10 +1,13 @@
-import { CANVAS_W, CANVAS_H, SHOP_ITEMS, LEVEL_HEIGHT, COLORS } from "./constants.js";
+import { CANVAS_W, CANVAS_H, SHOP_ITEMS, LEVEL_HEIGHT, COLORS, applyColorMode } from "./constants.js";
 import { GameState, LevelData } from "./types.js";
 import { Input } from "./Input.js";
 import { Camera } from "./Camera.js";
 import { AudioManager } from "./Audio.js";
 import { Renderer } from "./Renderer.js";
 import { UI } from "./UI.js";
+import { Announcer } from "./Announcer.js";
+import { AccessibilitySettings, AccessibilitySettingsState } from "./AccessibilitySettings.js";
+import { FocusManager } from "./FocusManager.js";
 import { generateLevel, generateStalactites, generateCrystals, StalactiteData, CrystalData } from "./Level.js";
 import { Dino } from "./entities/Dino.js";
 import { Companion } from "./entities/Companion.js";
@@ -26,6 +29,9 @@ export class Game {
   private audio: AudioManager;
   private renderer: Renderer;
   private ui: UI;
+  private announcer: Announcer;
+  private accessibility: AccessibilitySettings;
+  private focus: FocusManager;
 
   private state: GameState = GameState.MENU;
   private levelNum = 1;
@@ -66,7 +72,25 @@ export class Game {
     this.audio = new AudioManager();
     this.renderer = new Renderer(this.ctx);
     this.ui = new UI();
+    this.announcer = new Announcer(this.audio);
+    this.accessibility = new AccessibilitySettings();
+    this.focus = new FocusManager(
+      document.getElementById("game-wrapper")!,
+      this.announcer,
+      {
+        start: () => this.startRun(),
+        resume: () => this.setState(GameState.PLAYING),
+        restart: () => this.restartFromGameOver(),
+        buy: (itemId) => this.tryBuy(itemId),
+        closeShop: () => this.setState(GameState.PLAYING),
+        toggleMute: () => this.toggleMute(),
+        toggleSetting: (key) => this.toggleAccessibility(key),
+      },
+    );
     this.loadSave();
+    this.applyAccessibilitySettings();
+    this.syncOverlay();
+    this.focus.enterState(this.state);
   }
 
   private loadSave(): void {
@@ -91,9 +115,66 @@ export class Game {
     } catch {}
   }
 
+  private setState(state: GameState): void {
+    if (this.state === state) return;
+    this.state = state;
+    this.syncOverlay();
+    this.focus.enterState(state);
+  }
+
+  private syncOverlay(): void {
+    this.focus.updateMenu(this.highScore, this.depthRecord);
+    this.focus.updatePause(this.audio.isMuted(), this.accessibility.state);
+    this.focus.updateGameOver(this.score, this.levelNum, this.highScore, this.depthRecord);
+    if (this.dino && this.companion) {
+      this.focus.updateShop({
+        treasures: this.treasures,
+        selectedIdx: this.shopSelectedIdx,
+        upgrades: this.dino.upgrades,
+        companionAlive: this.companion.alive,
+      });
+    }
+  }
+
+  private toggleMute(): void {
+    this.audio.toggleMute();
+    this.syncOverlay();
+  }
+
+  private toggleAccessibility(key: keyof AccessibilitySettingsState): void {
+    this.accessibility.toggle(key);
+    this.applyAccessibilitySettings();
+    this.syncOverlay();
+  }
+
+  private applyAccessibilitySettings(): void {
+    applyColorMode(this.accessibility.state.highContrast);
+    this.camera.setReducedMotion(this.accessibility.state.reducedMotion);
+    this.ui.setAccessibilityOptions({
+      reducedMotion: this.accessibility.state.reducedMotion,
+      largeHUD: this.accessibility.state.largeHUD,
+    });
+  }
+
   getState(): GameState { return this.state; }
   getInput(): Input { return this.input; }
   isMerchantNear(): boolean { return !!this.merchant?.nearPlayer; }
+
+  startRun(): void {
+    if (!this.audioStarted) {
+      this.audio.init();
+      this.audioStarted = true;
+    }
+    this.score = 0;
+    this.treasures = 0;
+    this.initLevel(1);
+    this.setState(GameState.PLAYING);
+    this.ui.triggerLevelFlash(1);
+  }
+
+  restartFromGameOver(): void {
+    this.setState(GameState.MENU);
+  }
 
   start(): void {
     this.lastTime = performance.now();
@@ -153,6 +234,7 @@ export class Game {
     if (this.levelData.bossX !== undefined) {
       const by = this.findFloorY(this.levelData.bossX, platforms);
       this.boss = new Boss(this.levelData.bossX, by - 110, n);
+      this.announcer.assertive("Warning. Something massive stirs ahead.");
     } else {
       this.boss = null;
     }
@@ -178,7 +260,7 @@ export class Game {
     this.ui.update(dt);
     this.renderer.update(dt);
 
-    if (this.input.mute()) this.audio.toggleMute();
+    if (this.input.mute()) this.toggleMute();
 
     switch (this.state) {
       case GameState.MENU: this.updateMenu(dt); break;
@@ -192,15 +274,7 @@ export class Game {
 
   private updateMenu(_dt: number): void {
     if (this.input.confirm()) {
-      if (!this.audioStarted) {
-        this.audio.init();
-        this.audioStarted = true;
-      }
-      this.score = 0;
-      this.treasures = 0;
-      this.initLevel(1);
-      this.state = GameState.PLAYING;
-      this.ui.triggerLevelFlash(1);
+      this.startRun();
     }
   }
 
@@ -215,7 +289,7 @@ export class Game {
     }
 
     // Pause
-    if (this.input.pause()) { this.state = GameState.PAUSED; return; }
+    if (this.input.pause()) { this.setState(GameState.PAUSED); return; }
 
     if (this.respawnQueued) {
       this.respawnTimer -= dt;
@@ -280,6 +354,8 @@ export class Game {
         this.treasures += t.value;
         this.score += t.value * 10;
         this.audio.playTreasure();
+        this.announcer.polite(`${t.value} gems collected. Total: ${this.treasures}`);
+        this.syncOverlay();
       }
     });
     this.treasureList = this.treasureList.filter((t) => !t.collected);
@@ -309,12 +385,15 @@ export class Game {
     this.debrisList.forEach((d) => {
       if (d.isFalling) {
         if (d.overlapsEntity(this.dino) && !this.dino.isDying) {
+          const hpBefore = this.dino.hp;
           const died = this.dino.takeDamage();
           if (died) {
             this.audio.playDeath();
+            this.announcer.assertive(`Hit. ${this.dino.hp} hearts left.`);
             this.camera.shake(10, 600);
             this.queueRespawn();
           } else {
+            if (this.dino.hp < hpBefore) this.announcer.assertive(`Hit. ${this.dino.hp} hearts left.`);
             this.audio.playHit();
             this.ui.triggerDamageFlash();
             this.camera.shake(5, 300);
@@ -323,6 +402,7 @@ export class Game {
         if (d.overlapsEntity(this.companion) && this.companion.alive) {
           this.companion.die();
           this.audio.playCompanionScream();
+          this.announcer.assertive("Your companion has fallen");
         }
       }
     });
@@ -330,11 +410,14 @@ export class Game {
     // Enemy contact vs dino/companion
     this.enemies.forEach((e) => {
       if (e.overlapsEntity(this.dino) && !this.dino.isDying) {
+        const hpBefore = this.dino.hp;
         const died = this.dino.takeDamage();
         if (died) {
           this.audio.playDeath();
+          this.announcer.assertive(`Hit. ${this.dino.hp} hearts left.`);
           this.queueRespawn();
         } else {
+          if (this.dino.hp < hpBefore) this.announcer.assertive(`Hit. ${this.dino.hp} hearts left.`);
           this.audio.playHit();
           this.ui.triggerDamageFlash();
         }
@@ -342,16 +425,20 @@ export class Game {
       if (e.overlapsEntity(this.companion) && this.companion.alive) {
         this.companion.die();
         this.audio.playCompanionScream();
+        this.announcer.assertive("Your companion has fallen");
       }
     });
 
     // Boss contact vs dino
     if (this.boss && this.boss.overlapsEntity(this.dino) && !this.dino.isDying) {
+      const hpBefore = this.dino.hp;
       const died = this.dino.takeDamage();
       if (died) {
         this.audio.playDeath();
+        this.announcer.assertive(`Hit. ${this.dino.hp} hearts left.`);
         this.queueRespawn();
       } else {
+        if (this.dino.hp < hpBefore) this.announcer.assertive(`Hit. ${this.dino.hp} hearts left.`);
         this.audio.playHit();
         this.ui.triggerDamageFlash();
         this.camera.shake(8, 400);
@@ -360,8 +447,9 @@ export class Game {
 
     // Open shop
     if (this.merchant.nearPlayer && this.input.interact()) {
-      this.state = GameState.SHOP;
       this.shopSelectedIdx = 0;
+      this.setState(GameState.SHOP);
+      this.syncOverlay();
       return;
     }
 
@@ -373,6 +461,7 @@ export class Game {
         this.checkpointY = cp.y;
         this.audio.playCheckpoint();
         this.ui.triggerCheckpointFlash();
+        this.announcer.polite("Checkpoint. You're safe for now.");
       }
     });
 
@@ -421,7 +510,8 @@ export class Game {
       // Last life — game over after death anim
       setTimeout(() => {
         this.saveSave();
-        this.state = GameState.GAME_OVER;
+        this.announcer.assertive(`You died. Reached depth ${this.levelNum}. Score: ${this.score}.`);
+        this.setState(GameState.GAME_OVER);
       }, 900);
       return;
     }
@@ -432,7 +522,8 @@ export class Game {
   private completeLevel(): void {
     this.score += 100 + this.levelNum * 20;
     this.audio.playLevelComplete();
-    this.state = GameState.LEVEL_WIN;
+    this.announcer.polite(`Descending to depth ${this.levelNum + 1}`);
+    this.setState(GameState.LEVEL_WIN);
   }
 
   private levelWinTimer = 0;
@@ -449,7 +540,7 @@ export class Game {
       this.dino.upgrades = prevUpgrades;
       this.dino.maxHp = prevUpgrades.maxHearts;
       this.dino.hp = Math.min(prevHp, prevUpgrades.maxHearts);
-      this.state = GameState.PLAYING;
+      this.setState(GameState.PLAYING);
       this.ui.triggerLevelFlash(next);
     }
   }
@@ -460,15 +551,19 @@ export class Game {
 
     if (this.input.pressed("ArrowRight") || this.input.pressed("KeyD")) {
       this.shopSelectedIdx = (this.shopSelectedIdx + 1) % items.length;
+      this.syncOverlay();
     }
     if (this.input.pressed("ArrowLeft") || this.input.pressed("KeyA")) {
       this.shopSelectedIdx = (this.shopSelectedIdx - 1 + items.length) % items.length;
+      this.syncOverlay();
     }
     if (this.input.pressed("ArrowDown") || this.input.pressed("KeyS")) {
       this.shopSelectedIdx = Math.min(this.shopSelectedIdx + cols, items.length - 1);
+      this.syncOverlay();
     }
     if (this.input.pressed("ArrowUp") || this.input.pressed("KeyW")) {
       this.shopSelectedIdx = Math.max(this.shopSelectedIdx - cols, 0);
+      this.syncOverlay();
     }
 
     if (this.input.confirm()) {
@@ -476,7 +571,7 @@ export class Game {
     }
 
     if (this.input.interact() || this.input.pause()) {
-      this.state = GameState.PLAYING;
+      this.setState(GameState.PLAYING);
     }
   }
 
@@ -511,17 +606,20 @@ export class Game {
         break;
       case "revive":
         this.companion.revive(this.dino.x - 50, this.dino.y);
+        this.announcer.polite("Your companion lives again");
         break;
     }
+    this.announcer.polite(`${item.label} bought. ${this.treasures} gems remain.`);
+    this.syncOverlay();
   }
 
   private updatePaused(_dt: number): void {
-    if (this.input.pause()) this.state = GameState.PLAYING;
+    if (this.input.pause()) this.setState(GameState.PLAYING);
   }
 
   private updateGameOver(_dt: number): void {
     if (this.input.confirm()) {
-      this.state = GameState.MENU;
+      this.setState(GameState.MENU);
     }
   }
 
@@ -611,8 +709,10 @@ export class Game {
       this.ui.drawPauseMenu(ctx);
     }
     if (this.state === GameState.LEVEL_WIN) {
-      ctx.fillStyle = `rgba(0,0,0,${Math.min(1, this.levelWinTimer / 600)})`;
-      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+      if (!this.accessibility.state.reducedMotion) {
+        ctx.fillStyle = `rgba(0,0,0,${Math.min(1, this.levelWinTimer / 600)})`;
+        ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+      }
     }
   }
 
